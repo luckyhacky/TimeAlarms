@@ -67,6 +67,7 @@ public:
   void updateNextTrigger();
   time_t value;
   time_t nextTrigger;
+  time_t lastTrigger;
   AlarmMode_t Mode;
 };
 
@@ -76,6 +77,9 @@ class TimeAlarmsClass
 private:
   AlarmClass Alarm[dtNBR_ALARMS];
   void serviceAlarms();
+  bool    isStrictMonoton; // if true,  alarm will only fire once (e.g. timer 7:01, time set to 7:00 will fire at 7:01 next day)
+                           // if false, alarm will be retriggered if new time is set (e.g. timer 7:01, time set to 7:00 will refire at 7:01)
+  time_t timekeeper;       // holds time for retriggering if isStrictMonoton == false
   uint8_t isServicing;
   uint8_t servicedAlarmId; // the alarm currently being serviced
   AlarmID_t create(time_t value, OnTick_t onTickHandler, uint8_t isOneShot, dtAlarmPeriod_t alarmType);
@@ -155,6 +159,8 @@ public:
   void write(AlarmID_t ID, time_t value);   // write the value (and enable) the alarm with the given ID
   time_t read(AlarmID_t ID);                // return the value for the given timer
   dtAlarmPeriod_t readType(AlarmID_t ID);   // return the alarm type for the given alarm ID
+  bool getStrictMonoton();                  // get current mode
+  void setStrictMonoton(bool mode);         // set mode
 
   void free(AlarmID_t ID);                  // free the id to allow its reuse
 

@@ -32,6 +32,7 @@ AlarmClass::AlarmClass()
   Mode.isEnabled = Mode.isOneShot = 0;
   Mode.alarmType = dtNotAllocated;
   value = nextTrigger = 0;
+  lastTrigger = 0;
   onTickHandler = NULL;  // prevent a callback until this pointer is explicitly set
 }
 
@@ -43,6 +44,7 @@ void AlarmClass::updateNextTrigger()
 {
   if (Mode.isEnabled) {
     time_t time = now();
+    lastTrigger = nextTrigger;
     if (dtIsAlarm(Mode.alarmType) && nextTrigger <= time) {
       // update alarm if next trigger is not yet in the future
       if (Mode.alarmType == dtExplicitAlarm) {
@@ -84,6 +86,7 @@ void AlarmClass::updateNextTrigger()
 TimeAlarmsClass::TimeAlarmsClass()
 {
   isServicing = false;
+  isStrictMonoton = true;
   for(uint8_t id = 0; id < dtNBR_ALARMS; id++) {
     free(id);   // ensure all Alarms are cleared and available for allocation
   }
@@ -226,11 +229,41 @@ bool TimeAlarmsClass::getIsServicing()
   return isServicing;
 }
 
+// get current mode
+bool TimeAlarmsClass::getStrictMonoton()
+{
+  return isStrictMonoton;
+}
+
+// set mode
+void TimeAlarmsClass::setStrictMonoton(bool mode)
+{
+  isStrictMonoton = mode;
+}
+
+
 //***********************************************************
 //* Private Methods
 
 void TimeAlarmsClass::serviceAlarms()
 {
+  // if not strict monoton, we rearm trigger, so we trigger event even on time if time was set back
+  if (!isStrictMonoton)
+  {
+    // time was set back, we rearm all trigger
+    if(timekeeper > now())
+    {
+      for (servicedAlarmId = 0; servicedAlarmId < dtNBR_ALARMS; servicedAlarmId++) {
+        if (Alarm[servicedAlarmId].Mode.isEnabled) {
+          if(Alarm[servicedAlarmId].lastTrigger > now())
+          {
+            Alarm[servicedAlarmId].nextTrigger = Alarm[servicedAlarmId].lastTrigger;
+          }
+        }
+      }
+    }
+    timekeeper = now();
+  }
   if (!isServicing) {
     isServicing = true;
     for (servicedAlarmId = 0; servicedAlarmId < dtNBR_ALARMS; servicedAlarmId++) {
